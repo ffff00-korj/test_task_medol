@@ -8,7 +8,7 @@ async def register():
     return {'error': 'Not implemented'}
 
 
-@router.get('/login')
+@router.post('/login')
 async def login():
     return {'error': 'Not implemented'}
 
