@@ -1,0 +1,11 @@
+# pyenv
+.python-version
+
+# env
+.venv
+.env
+venv
+
+# cache
+__pycache__/
+.ruff_cache/
