@@ -52,7 +52,7 @@ class UserService:
         token = self.generate_token(user.id, user.name, user.role)
         return TokenSchema(token_type='access', access_token=token)
 
-    async def me(self, token: str) -> UserResponseSchema:
+    async def get_from_token(self, token: str) -> UserResponseSchema:
         payload = self.decode_token(token)
         return UserResponseSchema.validate(
             {

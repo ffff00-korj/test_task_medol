@@ -32,4 +32,4 @@ async def me(request: Request, service: UserServiceDep):
     token = request.headers.get('Authorization')
     if not token:
         raise HTTPException(status_code=401, detail='Unauthorized')
-    return await service.me(token.split(' ')[1])
+    return await service.get_from_token(token.split(' ')[1])
