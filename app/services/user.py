@@ -1,15 +1,11 @@
 from collections.abc import AsyncIterator
-from datetime import datetime, timedelta
 from typing import Annotated
 
-import bcrypt
-import jwt
 from fastapi import Depends
-from fastapi.exceptions import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio.session import AsyncSession
 
-from app.config import settings
+from app.auth.utils import decode_token, generate_token, hash_password, verify_password
 from app.infra.postgres.db import GetSessionDep
 from app.infra.postgres.models.user import UserModel
 from app.infra.postgres.storage.user import UserStorage
@@ -21,13 +17,21 @@ class UserAlreadyExistsError(Exception):
     pass
 
 
+class UserNotFoundError(Exception):
+    pass
+
+
+class InvalidCredentialsError(Exception):
+    pass
+
+
 class UserService:
     def __init__(self, session: AsyncSession):
         self.user_storage = UserStorage(session)
 
     async def create(self, user: UserCreateSchema) -> UserResponseSchema:
         user = user.copy()
-        user.password = self.hash_password(user.password)
+        user.password = hash_password(user.password)
         try:
             new_user = await self.user_storage.create(UserModel(**user.dict()))
         except IntegrityError as e:
@@ -43,17 +47,14 @@ class UserService:
     async def login(self, login_form: LoginSchema) -> TokenSchema:
         user = await self.user_storage.get(login_form.name)
         if not user:
-            raise HTTPException(
-                status_code=400,
-                detail=f'User with name {login_form.name} not registered',
-            )
-        if not self.verify_password(login_form.password, user.password):
-            raise HTTPException(status_code=401, detail='Invalid password')
-        token = self.generate_token(user.id, user.name, user.role)
+            raise UserNotFoundError
+        if not verify_password(login_form.password, user.password):
+            raise InvalidCredentialsError
+        token = generate_token(user.id, user.name, user.role)
         return TokenSchema(token_type='access', access_token=token)
 
     async def get_from_token(self, token: str) -> UserResponseSchema:
-        payload = self.decode_token(token)
+        payload = decode_token(token)
         return UserResponseSchema.validate(
             {
                 'id': int(payload['sub']),
@@ -61,24 +62,6 @@ class UserService:
                 'role': payload['role'],
             }
         )
-
-    def hash_password(self, password: str) -> str:
-        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-
-    def verify_password(self, password: str, hashed_password: str) -> bool:
-        return bcrypt.checkpw(password.encode(), hashed_password.encode())
-
-    def generate_token(self, id: int, name: str, role: str) -> str:
-        payload = {
-            'sub': str(id),
-            'name': name,
-            'role': role,
-            'exp': datetime.utcnow() + timedelta(hours=1),
-        }
-        return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
-
-    def decode_token(self, token: str) -> dict:
-        return jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
 
 
 async def get_service(session: GetSessionDep) -> AsyncIterator[UserService]:

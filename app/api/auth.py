@@ -3,7 +3,12 @@ from fastapi.exceptions import HTTPException
 
 from app.schemas.auth import LoginSchema, TokenSchema
 from app.schemas.user import UserCreateSchema, UserResponseSchema
-from app.services.user import UserAlreadyExistsError, UserServiceDep
+from app.services.user import (
+    InvalidCredentialsError,
+    UserAlreadyExistsError,
+    UserNotFoundError,
+    UserServiceDep,
+)
 
 router = APIRouter()
 
@@ -24,7 +29,15 @@ async def register(
 
 @router.post('/login')
 async def login(login_form: LoginSchema, service: UserServiceDep) -> TokenSchema:
-    return await service.login(login_form)
+    try:
+        return await service.login(login_form)
+    except UserNotFoundError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f'User with name {login_form.name} not registered',
+        ) from e
+    except InvalidCredentialsError as e:
+        raise HTTPException(status_code=401, detail='Invalid password') from e
 
 
 @router.get('/me')
