@@ -18,6 +18,8 @@ class PostgresConfig(BaseModel):
 class Settings(BaseSettings):
     app: AppConfig = Field(default=AppConfig())
     postgres: PostgresConfig = Field(default=PostgresConfig())
+    secret_key: str = Field(default='secret', alias='SECRET_KEY')
+    jwt_algorithm: str = Field(default='HS256')
 
     @property
     def postgres_uri(self) -> str:
