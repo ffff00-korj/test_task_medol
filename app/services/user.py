@@ -53,7 +53,7 @@ class UserService:
         return TokenSchema(token_type='access', access_token=token)
 
     async def me(self, token: str) -> UserResponseSchema:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        payload = self.decode_token(token)
         return UserResponseSchema.validate(
             {
                 'id': int(payload['sub']),
@@ -76,6 +76,9 @@ class UserService:
             'exp': datetime.utcnow() + timedelta(hours=1),
         }
         return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+    def decode_token(self, token: str) -> dict:
+        return jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
 
 
 async def get_service(session: GetSessionDep) -> AsyncIterator[UserService]:
