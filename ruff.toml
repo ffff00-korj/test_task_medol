@@ -1,0 +1,8 @@
+line-length = 100
+exclude = [".venv"]
+
+[lint]
+select = ["E", "F", "UP", "B", "SIM", "I"]
+
+[format]
+quote-style = "single"
